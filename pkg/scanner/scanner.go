@@ -1,5 +1,4 @@
 package scanner
-
 import (
 	"fmt"
 	"sync"
@@ -7,6 +6,7 @@ import (
 
 	"github.com/dsecuredcom/vhost-fuzzer/pkg/config"
 	"github.com/schollz/progressbar/v3"
+	"golang.org/x/time/rate" // Import the rate package
 )
 
 type Scanner struct {
@@ -18,16 +18,25 @@ type Scanner struct {
 	progressCount  int64
 	progressMutex  sync.Mutex
 	lastUpdateTime time.Time
+	rateLimiter    *rate.Limiter // Add a rate limiter
 }
 
 func NewScanner(cfg config.Config, bar *progressbar.ProgressBar) *Scanner {
+	var rateLimiter *rate.Limiter
+	if cfg.RateLimit > 0 {
+		rateLimiter = rate.NewLimiter(rate.Limit(cfg.RateLimit), 1) // Allow cfg.RateLimit requests per second
+	}
+
 	return &Scanner{
 		config:         cfg,
 		bar:            bar,
 		targetChan:     make(chan Target, cfg.Concurrency*2),
 		resultChan:     make(chan string, cfg.Concurrency*2),
 		clients:        newClientCache(),
+		progressCount:  0,
+		progressMutex:  sync.Mutex{},
 		lastUpdateTime: time.Now(),
+		rateLimiter:    rateLimiter, // Initialize the rate limiter
 	}
 }
 
