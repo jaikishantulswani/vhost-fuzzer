@@ -1,3 +1,6 @@
+
+# Added rate limit / accept multiple status code and show content length title along with status code 
+
 # vhost-fuzzer
 
 A high-performance virtual host fuzzing tool designed to discover virtual hosts by testing different host headers against IP addresses. It supports concurrent scanning, custom paths, and flexible filtering options.
