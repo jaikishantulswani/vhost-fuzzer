@@ -45,7 +45,7 @@ func (s *Scanner) Run() {
 	defer processor.Close()
 
 	go func() {
-		if err := processor.ProcessFiles(); err != nil {
+		if err := processor.ProcessFilesChunked(); err != nil {
 			fmt.Printf("Error processing files: %v\n", err)
 		}
 	}()
