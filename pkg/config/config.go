@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"strconv"
 )
 
 type Config struct {
@@ -14,7 +15,7 @@ type Config struct {
 	Concurrency         int
 	Paths               []string
 	HTTPBodyIncludes    string
-	HTTPStatusIs        int
+	HTTPStatusIs        []int // Change to a slice of integers
 	Verbose             bool
 	RequestTimeout      time.Duration
 	MaxIdleConnDuration time.Duration
@@ -22,6 +23,7 @@ type Config struct {
 	ReadTimeout         time.Duration
 	WriteTimeout        time.Duration
 	Protocol            string
+	RateLimit           int
 }
 
 func ParseFlags() Config {
@@ -29,6 +31,7 @@ func ParseFlags() Config {
 	var pathsStr string
 	var protocol string
 	var requestTimeout, maxIdleConnDuration, maxConnDuration, readTimeout, writeTimeout int
+	var httpStatusIsStr string // Add this variable to hold the comma-separated status codes
 
 	flag.StringVar(&config.IPsFile, "ips", "", "File containing IP addresses")
 	flag.StringVar(&config.HostsFile, "hosts", "", "File containing hostnames")
@@ -36,19 +39,33 @@ func ParseFlags() Config {
 	flag.StringVar(&pathsStr, "paths", "/", "Comma-separated list of paths to check")
 	flag.StringVar(&protocol, "protocol", "http", "http/https")
 	flag.StringVar(&config.HTTPBodyIncludes, "http-body-includes", "", "String to search for in response body")
-	flag.IntVar(&config.HTTPStatusIs, "http-status-is", 0, "Expected HTTP status code")
+	flag.StringVar(&httpStatusIsStr, "http-status-is", "", "Comma-separated list of expected HTTP status codes") // Update this flag
 	flag.IntVar(&requestTimeout, "request-timeout", 4, "Timeout for individual requests in seconds")
 	flag.IntVar(&maxIdleConnDuration, "max-idle-timeout", 6, "Maximum idle connection duration in seconds")
 	flag.IntVar(&maxConnDuration, "max-conn-timeout", 6, "Maximum connection duration in seconds")
 	flag.IntVar(&readTimeout, "read-timeout", 5, "Read timeout in seconds")
 	flag.IntVar(&writeTimeout, "write-timeout", 5, "Write timeout in seconds")
 	flag.BoolVar(&config.Verbose, "verbose", false, "Show all requests and responses")
+	flag.IntVar(&config.RateLimit, "rate-limit", 0, "Rate limit in requests per second (0 for no limit)")
 
 	flag.Parse()
 
 	if config.IPsFile == "" || config.HostsFile == "" {
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// Parse the comma-separated status codes into a slice of integers
+	if httpStatusIsStr != "" {
+		statusCodes := strings.Split(httpStatusIsStr, ",")
+		for _, codeStr := range statusCodes {
+			code, err := strconv.Atoi(strings.TrimSpace(codeStr))
+			if err != nil {
+				fmt.Printf("Invalid HTTP status code: %s\n", codeStr)
+				os.Exit(1)
+			}
+			config.HTTPStatusIs = append(config.HTTPStatusIs, code)
+		}
 	}
 
 	config.RequestTimeout = time.Duration(requestTimeout) * time.Second
