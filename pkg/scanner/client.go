@@ -1,58 +1,59 @@
 package scanner
 
 import (
-	"crypto/tls"
+	"context"
+	"net"
 	"sync"
+	"time"
 
 	"github.com/dsecuredcom/vhost-fuzzer/pkg/config"
 	"github.com/valyala/fasthttp"
 )
 
 type clientCache struct {
-	clients map[string]*fasthttp.HostClient
-	mu      sync.Mutex
+	clients         map[string]*fasthttp.Client
+	mu              sync.Mutex
+	followRedirects bool
 }
 
-func newClientCache() *clientCache {
+func newClientCache(followRedirects bool) *clientCache {
 	return &clientCache{
-		clients: make(map[string]*fasthttp.HostClient),
+		clients:         make(map[string]*fasthttp.Client),
+		followRedirects: followRedirects,
 	}
 }
 
-func (cc *clientCache) getClient(ip string, cfg config.Config) *fasthttp.HostClient {
+func (cc *clientCache) getClient(ip string, cfg config.Config) *fasthttp.Client {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 
-	key := ip + "|" + cfg.Protocol
-	if hc, ok := cc.clients[key]; ok {
-		return hc
+	if client, ok := cc.clients[ip]; ok {
+		return client
 	}
 
-	var port string
-	var isTLS bool
-	if cfg.Protocol == "https" {
-		port = "443"
-		isTLS = true
-	} else {
-		port = "80"
-		isTLS = false
-	}
-
-	hc := &fasthttp.HostClient{
-		Addr:                          ip + ":" + port,
-		IsTLS:                         isTLS,
-		MaxConnDuration:               cfg.MaxConnDuration,
-		MaxIdleConnDuration:           cfg.MaxIdleConnDuration,
-		ReadTimeout:                   cfg.ReadTimeout,
-		WriteTimeout:                  cfg.WriteTimeout,
-		DisableHeaderNamesNormalizing: true,
-		DisablePathNormalizing:        true,
-		NoDefaultUserAgentHeader:      true,
-		TLSConfig: &tls.Config{
-			InsecureSkipVerify: true,
+	// Create a custom dialer with increased timeout for DNS resolution
+	dialer := &fasthttp.TCPDialer{
+		Concurrency:      1000,
+		DNSCacheDuration: time.Minute, // Cache DNS results for 1 minute
+		Resolver: &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{
+					Timeout: 5 * time.Second, // Increase DNS resolution timeout
+				}
+				return d.DialContext(ctx, network, "8.8.8.8:53") // Use Google's public DNS
+			},
 		},
 	}
 
-	cc.clients[ip] = hc
-	return hc
+	client := &fasthttp.Client{
+		MaxIdleConnDuration: 1 * time.Second, // Close idle connections after 1 second
+		MaxConnDuration:     5 * time.Second, // Close connections after 5 seconds
+		ReadTimeout:         cfg.ReadTimeout,
+		WriteTimeout:        cfg.WriteTimeout,
+		Dial:                dialer.Dial, // Use the custom dialer
+	}
+
+	cc.clients[ip] = client
+	return client
 }

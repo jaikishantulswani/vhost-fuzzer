@@ -8,19 +8,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// ANSI escape codes for text decoration
-const (
-	colorReset  = "\033[0m"
-	colorRed    = "\033[31m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorBlue   = "\033[34m"
-	colorPurple = "\033[35m"
-	colorCyan   = "\033[36m"
-	colorWhite  = "\033[37m"
-	boldText    = "\033[1m"
-)
-
 func (s *Scanner) checkTarget(target Target, req *fasthttp.Request, resp *fasthttp.Response) string {
 	// Enforce rate limiting
 	if s.rateLimiter != nil {
@@ -131,17 +118,8 @@ func (s *Scanner) checkTarget(target Target, req *fasthttp.Request, resp *fastht
 			}
 		}
 
-		// Decorate the output with colors and bold text
-		results = append(results, fmt.Sprintf(
-			"%s[+] Found match - IP: %s%s, Host: %s%s, Path: %s%s, Status: %s%d%s, Content-Length: %s%s%s, Title: %s%s%s",
-			boldText+colorGreen,
-			colorCyan, target.IP,
-			colorYellow, target.Hostname,
-			colorPurple, target.Path,
-			colorBlue, statusCode, colorReset,
-			colorRed, contentLength, colorReset,
-			colorWhite, title, colorReset,
-		))
+		results = append(results, fmt.Sprintf("\n[+] Found match - IP: %s, Host: %s, Path: %s, Status: %d, Content-Length: %s, Title: %s",
+			target.IP, target.Hostname, target.Path, statusCode, contentLength, title))
 	}
 
 	if len(results) > 0 {
