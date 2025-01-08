@@ -8,17 +8,21 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// ANSI escape codes for text decoration
+// ANSI escape codes for text decoration and cursor control
 const (
-	colorReset  = "\033[0m"
-	colorRed    = "\033[31m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorBlue   = "\033[34m"
-	colorPurple = "\033[35m"
-	colorCyan   = "\033[36m"
-	colorWhite  = "\033[37m"
-	boldText    = "\033[1m"
+	colorReset     = "\033[0m"
+	colorRed       = "\033[31m"
+	colorGreen     = "\033[32m"
+	colorYellow    = "\033[33m"
+	colorBlue      = "\033[34m"
+	colorPurple    = "\033[35m"
+	colorCyan      = "\033[36m"
+	colorWhite     = "\033[37m"
+	boldText       = "\033[1m"
+	cursorSave     = "\033[s"    // Save cursor position
+	cursorRestore  = "\033[u"    // Restore cursor position
+	cursorBottom   = "\033[999B" // Move cursor to the bottom of the terminal
+	clearLine      = "\033[2K"   // Clear the current line
 )
 
 func (s *Scanner) checkTarget(target Target, req *fasthttp.Request, resp *fasthttp.Response) string {
@@ -133,7 +137,7 @@ func (s *Scanner) checkTarget(target Target, req *fasthttp.Request, resp *fastht
 
 		// Decorate the output with colors and bold text
 		results = append(results, fmt.Sprintf(
-			"%s[+] Found match - IP: %s%s, Host: %s%s, Path: %s%s, Status: %s%d%s, Content-Length: %s%s%s, Title: %s%s%s",
+			"\n %s[+] Found match - IP: %s%s, Host: %s%s, Path: %s%s, Status: %s%d%s, Content-Length: %s%s%s, Title: %s%s%s",
 			boldText+colorGreen,
 			colorCyan, target.IP,
 			colorYellow, target.Hostname,
@@ -169,4 +173,24 @@ func truncateString(str string, maxLen int) string {
 		return str
 	}
 	return str[:maxLen] + "..."
+}
+
+// Function to display the progress bar at the bottom of the terminal
+func displayProgressBar(progress int, current, total int, elapsed, remaining string) {
+	fmt.Print(cursorSave)    // Save the current cursor position
+	fmt.Print(cursorBottom)  // Move the cursor to the bottom of the terminal
+	fmt.Print(clearLine)     // Clear the current line
+	fmt.Printf("[%d/%d] Scanning targets... %3d%% [%s%s] (%d/%d) [%s:%s]",
+		current, total, progress,
+		strings.Repeat("=", progress/2), strings.Repeat(" ", 50-progress/2),
+		current, total, elapsed, remaining,
+	)
+	fmt.Print(cursorRestore) // Restore the cursor position
+}
+
+// Function to print results above the progress bar
+func printResults(results string) {
+	fmt.Print(cursorSave)    // Save the current cursor position
+	fmt.Print(results)       // Print the results
+	fmt.Print(cursorRestore) // Restore the cursor position
 }

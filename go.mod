@@ -1,10 +1,13 @@
 module github.com/dsecuredcom/vhost-fuzzer
 
-go 1.19
+go 1.22
+
+toolchain go1.23.3
 
 require (
 	github.com/schollz/progressbar/v3 v3.17.1
 	github.com/valyala/fasthttp v1.58.0
+	golang.org/x/time v0.9.0
 )
 
 require (
